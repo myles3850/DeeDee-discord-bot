@@ -298,13 +298,15 @@ func (d *Discord) ProcessOldMessages(interaction *discordgo.InteractionCreate) {
 }
 
 func (d *Discord) processShakeCommand(interaction *discordgo.InteractionCreate) {
-
 	session := d.Session
+	emotes := []string{"<a:choccoREALLYhappyshakehuggers:1460017063513821267>", "<a:iraelythREALLYhappyshakehuggers:1462197698236256389>"}
+
+	selectedAnswer := emotes[rand.Intn(len(emotes))]
 
 	session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: "<a:choccoREALLYhappyshakehuggers:1460017063513821267>",
+			Content: selectedAnswer,
 		},
 	})
 }
