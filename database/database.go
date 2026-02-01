@@ -40,6 +40,11 @@ type CompletedChannel struct {
 	CompletedAt time.Time
 }
 
+type ChannelEmoji struct {
+	ChannelID int
+	EmojiID   string
+}
+
 func Setup() *Db {
 	var db Db
 	host := os.Getenv("DATABASE_HOST")
@@ -174,4 +179,74 @@ ON CONFLICT (discord_id) DO UPDATE SET discord_id = EXCLUDED.discord_id;`
 	if err != nil {
 		fmt.Printf("unable to save channel %s name %s: %+v \n", channelId, channelName, err.Error())
 	}
+}
+
+func (d *Db) ChannelHasHandler(channelId string, handlerType string, commandName string) bool {
+	var exists bool
+	sqlQuery := `
+	SELECT EXISTS(
+		SELECT 1 FROM channel_command_handlers cch
+		INNER JOIN channel_name ON channel_name.id = cch.channel_id
+		INNER JOIN commands ON commands.id = cch.command_id
+		WHERE channel_name.discord_channeL_id = $1
+		AND cch.handler_type = $2
+		AND commands.name = $3
+	);
+	`
+	d.Session.QueryRow(sqlQuery, channelId, handlerType, commandName).Scan(&exists)
+	return exists
+}
+
+func (d *Db) SaveEmojiChannelReaction(channelId string, emojiId string) (string, error) {
+	var savedEmojiId string
+	sqlQuery := `
+	INSERT INTO channels_emojis (discord_channel_id, discord_emoji_id)
+	VALUES ($1, $2);
+	`
+
+	err := d.Session.QueryRow(sqlQuery, channelId, emojiId).Scan(&savedEmojiId)
+
+	if err != nil {
+		return "", err
+	}
+	return savedEmojiId, nil
+}
+
+// cant figure out how to save handler function data type
+// more research needed
+func (d *Db) SaveChannelCommandHandler(commandName string, discordChannelId string, handlerType string, handlerFunc string) (int, error) {
+	var dbCommandId int
+	var dbChannelId int
+
+	channelSqlQuery := "SELECT id FROM channel_name WHERE discord_channel_id = $1"
+	channelErr := d.Session.QueryRow(channelSqlQuery, discordChannelId).Scan(&dbChannelId)
+
+	commandSqlQuery := "SELECT id FROM commands WHERE name = $1"
+	commandErr := d.Session.QueryRow(commandSqlQuery, discordChannelId).Scan(&dbCommandId)
+
+	// only do the next err if prev one doesnt error
+	// this is so ugly need refactoring
+	switch channelErr {
+	case sql.ErrNoRows:
+		return 0, channelErr
+	default:
+		switch commandErr {
+		case sql.ErrNoRows:
+			return 0, commandErr
+		default:
+			var id int
+			sqlQuery := `
+	INSERT INTO channel_command_handlers (command_id, channel_id, handler_type, handler_func)
+	VALUES ($1, $2, $3, $4);
+	`
+
+			err := d.Session.QueryRow(sqlQuery, dbCommandId, dbChannelId, handlerType, handlerFunc).Scan(&id)
+
+			if err != nil {
+				return 0, err
+			}
+			return id, nil
+		}
+	}
+
 }
