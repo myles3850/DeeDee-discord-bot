@@ -38,6 +38,7 @@ func main() {
 
 	discordInstance.RegisterCommands()
 	discordInstance.Session.AddHandler(discordInstance.OnInteraction)
+	discordInstance.Session.AddHandler(discordInstance.HandleMessageCreated)
 
 	server := apiInstance.Gin
 	registerApiEndpoints(apiInstance.Gin, discordInstance, apiInstance)
