@@ -10,13 +10,14 @@ import (
 )
 
 type CommandName struct {
-	wheel      string
-	eightBall  string
-	processOld string
-	shake      string
+	wheel          string
+	eightBall      string
+	processOld     string
+	shake          string
+	autoEmojiReact string
 }
 
-var names = &CommandName{wheel: "wheel", eightBall: "eight_ball", processOld: "process_old_messages", shake: "shake"}
+var names = &CommandName{wheel: "wheel", eightBall: "eight_ball", processOld: "process_old_messages", shake: "shake", autoEmojiReact: "auto_emoji_react"}
 
 func (d *Discord) RegisterCommands() {
 	s := d.Session
@@ -96,6 +97,25 @@ func (d *Discord) RegisterCommands() {
 			Name:        names.shake,
 			Description: "sends special shake emote",
 		},
+		{
+			Name:                     names.autoEmojiReact,
+			Description:              "Mod only - add auto emoji react to new messages in the specified channel",
+			DefaultMemberPermissions: &defaultMemberPermissions,
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:        "channel",
+					Description: "Select a channel to apply to",
+					Type:        discordgo.ApplicationCommandOptionChannel,
+					Required:    true,
+				},
+				{
+					Name:        "emoji",
+					Description: "Select the emoji for the reaction",
+					Type:        discordgo.ApplicationCommandOptionString,
+					Required:    true,
+				},
+			},
+		},
 	}
 
 	for _, cmd := range commands {
@@ -128,6 +148,9 @@ func (d *Discord) OnInteraction(s *discordgo.Session, i *discordgo.InteractionCr
 		return
 	case names.shake:
 		d.processShakeCommand(i)
+		return
+	case names.autoEmojiReact:
+		d.ProcessAutoEmojiReactCommand(i)
 	}
 
 }
