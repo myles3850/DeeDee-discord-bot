@@ -30,16 +30,16 @@ func init() {
 func main() {
 	defer databaseInstance.Session.Close()
 
+	discordInstance.Session.AddHandler(discordInstance.OnReady)
+	discordInstance.Session.AddHandler(discordInstance.OnInteraction)
+	discordInstance.Session.AddHandler(discordInstance.OnMessageCreate)
+	discordInstance.Session.AddHandler(discordInstance.OnMessageDelete)
+
 	if err := discordInstance.Session.Open(); err != nil {
 		panic("Error opening Discord session: " + err.Error())
 	}
 	defer discordInstance.Session.Close()
 	println("🤖 Bot is running and connected to Discord!")
-
-	discordInstance.RegisterCommands()
-	discordInstance.Session.AddHandler(discordInstance.OnInteraction)
-	discordInstance.Session.AddHandler(discordInstance.OnMessageCreate)
-	discordInstance.Session.AddHandler(discordInstance.OnMessageDelete)
 
 	server := apiInstance.Gin
 	registerApiEndpoints(apiInstance.Gin, discordInstance, apiInstance)

@@ -28,6 +28,10 @@ func (d *Discord) OnInteraction(s *discordgo.Session, i *discordgo.InteractionCr
 
 }
 
+func (d *Discord) OnReady(s *discordgo.Session, r *discordgo.Ready) {
+	d.RegisterCommands()
+}
+
 func (d *Discord) OnMessageReactionAdd(s *discordgo.Session, r *discordgo.MessageReactionAdd) {
 
 }
