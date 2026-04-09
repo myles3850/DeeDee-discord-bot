@@ -8,6 +8,8 @@ services:
       db:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - deedee
 
   db:
     image: postgres:17-alpine
@@ -24,6 +26,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - deedee
 
 volumes:
   postgres_data:
+
+networks:
+  deedee:
