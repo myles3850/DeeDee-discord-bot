@@ -108,30 +108,6 @@ func (d *Discord) RegisterCommands() {
 	}
 }
 
-func (d *Discord) OnInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
-
-	if i.Type != discordgo.InteractionApplicationCommand {
-		return
-	}
-
-	data := i.ApplicationCommandData()
-
-	switch data.Name {
-	case names.wheel:
-		d.processWheelCommand(i)
-		return
-	case names.eightBall:
-		d.process8BallCommand(i)
-		return
-	case names.processOld:
-		d.ProcessOldMessages(i)
-		return
-	case names.shake:
-		d.processShakeCommand(i)
-	}
-
-}
-
 //from here all functions are processing functions
 
 func (d *Discord) processWheelCommand(interaction *discordgo.InteractionCreate) {

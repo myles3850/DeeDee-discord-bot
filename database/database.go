@@ -24,6 +24,7 @@ type Message struct {
 	DiscordMessageID string
 	ChannelID        string
 	AuthorID         int
+	Content          string
 	CreatedAt        time.Time
 }
 
@@ -99,19 +100,34 @@ RETURNING id;`
 
 func (d *Db) SaveMessage(m *Message) (int, error) {
 	var id int
-	sqlQuery := `INSERT INTO messages (discord_message_id, channel_id, author_id, created_at)
-VALUES ($1, $2, $3, $4)
+	sqlQuery := `INSERT INTO messages (discord_message_id, channel_id, author_id, content, created_at)
+VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (discord_message_id)
 DO UPDATE SET channel_id = EXCLUDED.channel_id,
 			  author_id = EXCLUDED.author_id,
+			  content = EXCLUDED.content,
 			  created_at = EXCLUDED.created_at
 RETURNING id;`
 
-	err := d.Session.QueryRow(sqlQuery, m.DiscordMessageID, m.ChannelID, m.AuthorID, m.CreatedAt).Scan(&id)
+	err := d.Session.QueryRow(sqlQuery, m.DiscordMessageID, m.ChannelID, m.AuthorID, m.Content, m.CreatedAt).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
 	return id, nil
+}
+
+func (d *Db) GetMessageWithAuthor(discordMessageID string) (string, string, error) {
+	var content, username string
+	sqlQuery := `SELECT m.content, u.discord_user
+FROM messages m
+JOIN users u ON m.author_id = u.id
+WHERE m.discord_message_id = $1`
+
+	err := d.Session.QueryRow(sqlQuery, discordMessageID).Scan(&content, &username)
+	if err != nil {
+		return "", "", err
+	}
+	return content, username, nil
 }
 
 func (d *Db) SaveMessageWithAuthor(m *Message, author *User) (int, int, error) {

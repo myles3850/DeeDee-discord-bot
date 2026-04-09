@@ -19,6 +19,7 @@ func Setup(db *database.Db) (*Discord, error) {
 	guildId := os.Getenv("DISCORD_GUILD_ID")
 
 	discord, err := discordgo.New("Bot " + token)
+	discord.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent | discordgo.IntentsGuildMessageReactions
 
 	if err != nil {
 		fmt.Println("error creating Discord session: ", err)
