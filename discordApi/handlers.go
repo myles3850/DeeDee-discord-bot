@@ -1,8 +1,6 @@
 package discordapi
 
 import (
-	"fmt"
-
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -36,8 +34,9 @@ func (d *Discord) OnReady(s *discordgo.Session, r *discordgo.Ready) {
 
 func (d *Discord) OnMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	d.saveMessageToDb(m);
-	fmt.Printf("%v", m);
-	if m.ChannelID == "1483226520951455750" && m.ReferencedMessage == nil {
+
+	//if were in new members or welcome AND the message isn't a reply
+	if (m.ChannelID == "1483226521014636762" || m.ChannelID == "1483226521014636763") && m.ReferencedMessage == nil {
 		d.reactToIntroMessage(m)
 	}
 }
