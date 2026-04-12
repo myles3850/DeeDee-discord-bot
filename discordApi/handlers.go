@@ -39,3 +39,7 @@ func (d *Discord) OnMessageCreate(s *discordgo.Session, m *discordgo.MessageCrea
 func (d *Discord) OnMessageDelete(s *discordgo.Session, m *discordgo.MessageDelete) {
 	d.handleDeletedMessage(m)
 }
+
+func (d *Discord) OnMessageModified(s *discordgo.Session, m *discordgo.MessageUpdate) {
+	d.reportModifiedMessage(m)
+}
