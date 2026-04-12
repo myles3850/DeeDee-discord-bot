@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/bwmarrin/discordgo"
-	"golang.org/x/tools/go/analysis/passes/printf"
 )
 
 func (d *Discord) OnInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
