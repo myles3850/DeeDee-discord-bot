@@ -41,5 +41,6 @@ func (d *Discord) OnMessageDelete(s *discordgo.Session, m *discordgo.MessageDele
 }
 
 func (d *Discord) OnMessageModified(s *discordgo.Session, m *discordgo.MessageUpdate) {
+	println("a message was changed")
 	d.reportModifiedMessage(m)
 }
