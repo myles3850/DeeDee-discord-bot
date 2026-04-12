@@ -34,6 +34,9 @@ func (d *Discord) OnReady(s *discordgo.Session, r *discordgo.Ready) {
 
 func (d *Discord) OnMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	d.saveMessageToDb(m)
+	if m.ChannelID == "1483226520951455750" && m.ReferencedMessage == nil {
+		d.reactToIntroMessage(m)
+	}
 }
 
 func (d *Discord) OnMessageDelete(s *discordgo.Session, m *discordgo.MessageDelete) {
@@ -42,7 +45,7 @@ func (d *Discord) OnMessageDelete(s *discordgo.Session, m *discordgo.MessageDele
 
 func (d *Discord) OnMessageModified(s *discordgo.Session, m *discordgo.MessageUpdate) {
 	if m.Author.Bot {
-		return;
+		return
 	}
 	d.reportModifiedMessage(m)
 }

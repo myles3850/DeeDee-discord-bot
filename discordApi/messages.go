@@ -145,3 +145,7 @@ func (d *Discord) saveMessageToDb(m *discordgo.MessageCreate) {
 	}
 
 }
+
+func (d *Discord) reactToIntroMessage(m *discordgo.MessageCreate) {
+	d.Session.MessageReactionAdd(m.ChannelID, m.Message.ID, "1492652393433796890")
+}
