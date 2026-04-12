@@ -116,18 +116,15 @@ RETURNING id;`
 	return id, nil
 }
 
-func (d *Db) GetMessageWithAuthor(discordMessageID string) (string, string, error) {
-	var content, username string
-	sqlQuery := `SELECT m.content, u.discord_user
-FROM messages m
-JOIN users u ON m.author_id = u.id
-WHERE m.discord_message_id = $1`
+func (d *Db) GetMessageWithAuthor(discordMessageID string) (content, username, channelID string, createdAt time.Time, err error) {
+	sqlQuery := `
+SELECT m.content, u.discord_user, m.channel_id, m.created_at
+	FROM messages m
+	JOIN users u ON m.author_id = u.id
+	WHERE m.discord_message_id = $1`
 
-	err := d.Session.QueryRow(sqlQuery, discordMessageID).Scan(&content, &username)
-	if err != nil {
-		return "", "", err
-	}
-	return content, username, nil
+	err = d.Session.QueryRow(sqlQuery, discordMessageID).Scan(&content, &username, &channelID, &createdAt)
+	return
 }
 
 func (d *Db) SaveMessageWithAuthor(m *Message, author *User) (int, int, error) {
