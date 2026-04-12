@@ -46,7 +46,12 @@ func (d *Discord) OnMessageDelete(s *discordgo.Session, m *discordgo.MessageDele
 }
 
 func (d *Discord) OnMessageModified(s *discordgo.Session, m *discordgo.MessageUpdate) {
-	if m.Author.Bot {
+	if m.Author == nil || m.Author.Bot {
+		return
+	}
+	// EditedTimestamp is only set when the user actually edits message text, so if it's
+	// nil this is an embed-load update, not a real edit.
+	if m.EditedTimestamp == nil{
 		return
 	}
 	d.reportModifiedMessage(m)

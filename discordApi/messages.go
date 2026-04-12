@@ -63,7 +63,7 @@ func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 
 func (d *Discord) reportModifiedMessage(m *discordgo.MessageUpdate) {
 	//? we should find a place for these, maybe db but for now its living here
-	var botChannel = "1483226520951455750"
+	var botChannel = "1444301056057282627"
 
 	channelID := m.ChannelID
 	newContent := m.Content
