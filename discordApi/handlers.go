@@ -1,7 +1,10 @@
 package discordapi
 
 import (
+	"fmt"
+
 	"github.com/bwmarrin/discordgo"
+	"golang.org/x/tools/go/analysis/passes/printf"
 )
 
 func (d *Discord) OnInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -33,7 +36,8 @@ func (d *Discord) OnReady(s *discordgo.Session, r *discordgo.Ready) {
 }
 
 func (d *Discord) OnMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	d.saveMessageToDb(m)
+	d.saveMessageToDb(m);
+	fmt.Printf("%v", m);
 	if m.ChannelID == "1483226520951455750" && m.ReferencedMessage == nil {
 		d.reactToIntroMessage(m)
 	}
