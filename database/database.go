@@ -2,6 +2,7 @@ package database
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -26,6 +27,12 @@ type Message struct {
 	AuthorID         int
 	Content          string
 	CreatedAt        time.Time
+	EditHistory      []EditEntry
+}
+
+type EditEntry struct {
+	Content   string    `json:"content"`
+	ChangedAt time.Time `json:"changed_at"`
 }
 
 type Reaction struct {
@@ -187,4 +194,41 @@ ON CONFLICT (discord_id) DO UPDATE SET discord_id = EXCLUDED.discord_id;`
 	if err != nil {
 		fmt.Printf("unable to save channel %s name %s: %+v \n", channelId, channelName, err.Error())
 	}
+}
+
+func (d *Db) UpdateMessageContent(messageId string, newMessage string) error {
+	getQuery := "SELECT id, edit_history, content, discord_message_id FROM messages WHERE discord_message_id = $1"
+	putQuery := "UPDATE messages SET content = $1, edit_history = $2 WHERE id = $3"
+	updateTime := time.Now()
+
+	var message Message
+	var historyBytes []byte
+	err := d.Session.QueryRow(getQuery, messageId).Scan(&message.id, &historyBytes, &message.Content, &message.DiscordMessageID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("message not found")
+		}
+		return err
+	}
+
+	if historyBytes != nil {
+		if err := json.Unmarshal(historyBytes, &message.EditHistory); err != nil {
+			return fmt.Errorf("failed to parse edit_history: %w", err)
+		}
+	}
+
+	editHistory := append(message.EditHistory, EditEntry{Content: message.Content, ChangedAt: updateTime})
+
+	historyJSON, err := json.Marshal(editHistory)
+	if err != nil {
+		return fmt.Errorf("failed to marshal edit_history: %w", err)
+	}
+
+	_, err = d.Session.Exec(putQuery, newMessage, historyJSON, message.id)
+	if err != nil {
+		fmt.Printf("unable to save updated message: '%s' messageId: %s error: %+v \n", newMessage, message.DiscordMessageID, err.Error())
+		return err
+	}
+
+	return nil
 }

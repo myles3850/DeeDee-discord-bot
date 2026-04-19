@@ -61,64 +61,6 @@ func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 	d.Session.ChannelMessageSendEmbed(botChannel, embed)
 }
 
-func (d *Discord) reportModifiedMessage(m *discordgo.MessageUpdate) {
-	//? we should find a place for these, maybe db but for now its living here
-	var botChannel = "1483226520951455750"
-
-	channelID := m.ChannelID
-	newContent := m.Content
-	createdAt := m.Timestamp
-	var author, oldContent string
-
-	if m.Author != nil {
-		author = fmt.Sprintf("<@%s>", m.Author.ID)
-	}
-	if m.BeforeUpdate != nil {
-		oldContent = m.BeforeUpdate.Content
-	}
-
-	// use db as fallback for any missing fields
-	dbContent, dbUsername, dbChannelID, dbCreatedAt, err := d.Database.GetMessageWithAuthor(m.ID)
-	if err != nil {
-		fmt.Printf("reportModifiedMessage: db lookup failed for %s: %v\n", m.ID, err)
-	} else {
-		if channelID == "" {
-			channelID = dbChannelID
-		}
-		if author == "" {
-			author = dbUsername
-		}
-		if createdAt.IsZero() {
-			createdAt = dbCreatedAt
-		}
-		if oldContent == "" {
-			oldContent = dbContent
-		}
-	}
-
-	var sentAt string
-	if !createdAt.IsZero() {
-		sentAt = fmt.Sprintf("<t:%d:F>", createdAt.Unix())
-	}
-
-	embed := &discordgo.MessageEmbed{
-		Title: "Message Edited",
-		Color: 0xFEE75C,
-		Fields: []*discordgo.MessageEmbedField{
-			{Name: "Author", Value: author, Inline: true},
-			{Name: "Channel", Value: fmt.Sprintf("<#%s>", channelID), Inline: true},
-			{Name: "Sent", Value: sentAt, Inline: true},
-			{Name: "Before", Value: oldContent, Inline: false},
-			{Name: "After", Value: newContent, Inline: false},
-		},
-		Footer: &discordgo.MessageEmbedFooter{
-			Text: fmt.Sprintf("Message ID: %s", m.ID),
-		},
-	}
-
-	d.Session.ChannelMessageSendEmbed(botChannel, embed)
-}
-
 func (d *Discord) saveMessageToDb(m *discordgo.MessageCreate) {
 	if m.Author == nil || m.Author.Bot {
 		return
@@ -148,4 +90,8 @@ func (d *Discord) saveMessageToDb(m *discordgo.MessageCreate) {
 
 func (d *Discord) reactToIntroMessage(m *discordgo.MessageCreate) {
 	d.Session.MessageReactionAdd(m.ChannelID, m.Message.ID, "birbwave:1492652393433796890")
+}
+
+func (d *Discord) saveModifiedMessage(m *discordgo.MessageUpdate) {
+	_ = d.Database.UpdateMessageContent(m.ID, m.Content)
 }

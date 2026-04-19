@@ -54,5 +54,5 @@ func (d *Discord) OnMessageModified(s *discordgo.Session, m *discordgo.MessageUp
 	if m.EditedTimestamp == nil{
 		return
 	}
-	d.reportModifiedMessage(m)
+	d.saveModifiedMessage(m)
 }
