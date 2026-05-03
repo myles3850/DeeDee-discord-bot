@@ -26,17 +26,21 @@ CREATE TABLE IF NOT EXISTS "reminders" (
 	PRIMARY KEY ("id")
 );
 
+-- +goose StatementBegin
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'todo_fk5') THEN
         ALTER TABLE "todo" ADD CONSTRAINT "todo_fk5" FOREIGN KEY ("completed_by") REFERENCES "users"("id");
     END IF;
 END $$;
+-- +goose StatementEnd
 
+-- +goose StatementBegin
 DO $$ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'reminders_fk3') THEN
         ALTER TABLE "reminders" ADD CONSTRAINT "reminders_fk3" FOREIGN KEY ("user_created") REFERENCES "users"("id");
     END IF;
 END $$;
+-- +goose StatementEnd
 
 -- +goose Down
 ALTER TABLE "reminders" DROP CONSTRAINT IF EXISTS "reminders_fk3";
