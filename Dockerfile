@@ -13,5 +13,8 @@ FROM scratch
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /app/bot /bot
+COPY --from=builder /app/database/migrations /database/migrations
+
+ENV MIGRATIONS_DIR=/database/migrations
 
 ENTRYPOINT ["/bot"]

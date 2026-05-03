@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS "users" (
 	"id" serial NOT NULL UNIQUE,
 	"discord_id" bigint NOT NULL UNIQUE,
@@ -25,7 +26,12 @@ CREATE TABLE IF NOT EXISTS "reminders" (
 	PRIMARY KEY ("id")
 );
 
-
-
 ALTER TABLE "todo" ADD CONSTRAINT "todo_fk5" FOREIGN KEY ("completed_by") REFERENCES "users"("id");
 ALTER TABLE "reminders" ADD CONSTRAINT "reminders_fk3" FOREIGN KEY ("user_created") REFERENCES "users"("id");
+
+-- +goose Down
+ALTER TABLE "reminders" DROP CONSTRAINT IF EXISTS "reminders_fk3";
+ALTER TABLE "todo" DROP CONSTRAINT IF EXISTS "todo_fk5";
+DROP TABLE IF EXISTS "reminders";
+DROP TABLE IF EXISTS "todo";
+DROP TABLE IF EXISTS "users";

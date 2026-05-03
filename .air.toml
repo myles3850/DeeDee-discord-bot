@@ -1,0 +1,9 @@
+[build]
+cmd = "go build -o ./tmp/bot ."
+bin = "./tmp/bot"
+include_ext = ["go"]
+exclude_dir = ["tmp", "database/migrations"]
+delay = 500
+
+[log]
+time = false

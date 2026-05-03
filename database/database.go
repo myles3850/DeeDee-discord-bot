@@ -71,6 +71,11 @@ func Setup() *Db {
 		panic(err)
 	}
 	fmt.Printf("database connected and online: \n %+v \n", db.Session.Stats())
+
+	if err := HandleMigrations(db.Session); err != nil {
+		panic(err)
+	}
+
 	return &db
 }
 

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
+
 	"choccobear.tech/emojiBot/database"
 	discordapi "choccobear.tech/emojiBot/discordApi"
+	googleplatform "choccobear.tech/emojiBot/googlePlatform"
 	webapi "choccobear.tech/emojiBot/webApi"
 
 	"github.com/gin-gonic/gin"
@@ -17,8 +20,13 @@ func init() {
 	godotenv.Load()
 	var error error
 
+	sheet, err := googleplatform.NewSheet(context.Background())
+	if err != nil {
+		panic("Error initialising Google Sheet: " + err.Error())
+	}
+
 	databaseInstance = database.Setup()
-	discordInstance, error = discordapi.Setup(databaseInstance)
+	discordInstance, error = discordapi.Setup(databaseInstance, sheet)
 	apiInstance = webapi.Setup()
 
 	if error != nil {
