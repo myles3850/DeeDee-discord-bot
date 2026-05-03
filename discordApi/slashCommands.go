@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"strings"
 
-	"choccobear.tech/emojiBot/database"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -234,31 +233,21 @@ func (d *Discord) ProcessOldMessages(interaction *discordgo.InteractionCreate) {
 			}
 			for _, message := range messages {
 				fmt.Printf("Processing message: %s\n", message.ID)
-				userID, err := d.Database.SaveUser(&database.User{
-					DiscordID:       message.Author.ID,
-					DiscordUsername: message.Author.Username,
-				})
+				userID, err := d.Database.SaveUser(message.Author.ID, message.Author.Username)
 				if err != nil {
 					fmt.Printf("Error saving user: %+v\n", err)
 					break
 				}
-				messageID, err := d.Database.SaveMessage(&database.Message{
-					DiscordMessageID: message.ID,
-					ChannelID:        channel.ID,
-					AuthorID:         userID,
-					CreatedAt:        message.Timestamp,
-				})
+				messageID, err := d.Database.SaveMessage(message.ID, channel.ID, userID, "", message.Timestamp)
 				if err != nil {
 					fmt.Printf("Error saving message: %+v\n", err)
 					break
 				}
 				if len(message.Reactions) > 0 {
 					for _, react := range message.Reactions {
-						d.Database.SaveReaction(&database.Reaction{
-							MessageID: messageID,
-							Emoji:     react.Emoji.Name,
-							ReactorID: userID,
-						})
+						if err := d.Database.SaveReaction(messageID, userID, react.Emoji.Name); err != nil {
+							fmt.Printf("Error saving reaction: %+v\n", err)
+						}
 					}
 				}
 			}

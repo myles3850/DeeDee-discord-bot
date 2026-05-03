@@ -1,51 +1,28 @@
 package database
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	_ "github.com/lib/pq"
+	"github.com/sqlc-dev/pqtype"
+
+	sqlcdb "choccobear.tech/emojiBot/database/sqlc"
 )
 
 type Db struct {
 	Session *sql.DB
-}
-
-type User struct {
-	id              int
-	DiscordID       string
-	DiscordUsername string
-}
-
-type Message struct {
-	id               int
-	DiscordMessageID string
-	ChannelID        string
-	AuthorID         int
-	Content          string
-	CreatedAt        time.Time
-	EditHistory      []EditEntry
+	Queries *sqlcdb.Queries
 }
 
 type EditEntry struct {
 	Content   string    `json:"content"`
 	ChangedAt time.Time `json:"changed_at"`
-}
-
-type Reaction struct {
-	id        int
-	MessageID int
-	Emoji     string
-	ReactorID int
-}
-
-type CompletedChannel struct {
-	id          int
-	ChannelID   string
-	CompletedAt time.Time
 }
 
 func Setup() *Db {
@@ -65,6 +42,7 @@ func Setup() *Db {
 		panic(err)
 	}
 	db.Session = d
+	db.Queries = sqlcdb.New(d)
 
 	err = db.Session.Ping()
 	if err != nil {
@@ -79,89 +57,79 @@ func Setup() *Db {
 	return &db
 }
 
-func (d *Db) GetUser(userId int) User {
-	var user User
-	sqlQuery := "SELECT * FROM users WHERE discord_id = $1"
-	err := d.Session.QueryRow(sqlQuery, userId).Scan(
-		&user.id,
-		&user.DiscordID,
-		&user.DiscordUsername,
-	)
-	switch err {
-	case sql.ErrNoRows:
-		println(err.Error())
-		return User{}
-	default:
-		return user
+func (d *Db) SaveUser(discordID string, username string) (int32, error) {
+	id, err := strconv.ParseInt(discordID, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid discord ID %s: %w", discordID, err)
 	}
+	return d.Queries.SaveUser(context.Background(), sqlcdb.SaveUserParams{
+		DiscordID:   id,
+		DiscordUser: username,
+	})
 }
 
-func (d *Db) SaveUser(u *User) (int, error) {
-	var id int
-	sqlQuery := `INSERT INTO users (discord_id, discord_user)
-VALUES ($1, $2)
-ON CONFLICT (discord_id) DO UPDATE SET discord_user = EXCLUDED.discord_user
-RETURNING id;`
-
-	err := d.Session.QueryRow(sqlQuery, u.DiscordID, u.DiscordUsername).Scan(&id)
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
-}
-
-func (d *Db) SaveMessage(m *Message) (int, error) {
-	var id int
-	sqlQuery := `INSERT INTO messages (discord_message_id, channel_id, author_id, content, created_at)
-VALUES ($1, $2, $3, $4, $5)
-ON CONFLICT (discord_message_id)
-DO UPDATE SET channel_id = EXCLUDED.channel_id,
-			  author_id = EXCLUDED.author_id,
-			  content = EXCLUDED.content,
-			  created_at = EXCLUDED.created_at
-RETURNING id;`
-
-	err := d.Session.QueryRow(sqlQuery, m.DiscordMessageID, m.ChannelID, m.AuthorID, m.Content, m.CreatedAt).Scan(&id)
-	if err != nil {
-		return 0, err
-	}
-	return id, nil
+func (d *Db) SaveMessage(discordMessageID, channelID string, authorID int32, content string, createdAt time.Time) (int32, error) {
+	return d.Queries.SaveMessage(context.Background(), sqlcdb.SaveMessageParams{
+		DiscordMessageID: discordMessageID,
+		ChannelID:        channelID,
+		AuthorID:         authorID,
+		Content:          content,
+		CreatedAt:        sql.NullTime{Time: createdAt, Valid: !createdAt.IsZero()},
+	})
 }
 
 func (d *Db) GetMessageWithAuthor(discordMessageID string) (content, username, channelID string, createdAt time.Time, err error) {
-	sqlQuery := `
-SELECT m.content, u.discord_user, m.channel_id, m.created_at
-	FROM messages m
-	JOIN users u ON m.author_id = u.id
-	WHERE m.discord_message_id = $1`
-
-	err = d.Session.QueryRow(sqlQuery, discordMessageID).Scan(&content, &username, &channelID, &createdAt)
+	msg, err := d.Queries.GetMessageWithAuthor(context.Background(), discordMessageID)
+	if err != nil {
+		return
+	}
+	content = msg.Content
+	username = msg.DiscordUser
+	channelID = msg.ChannelID
+	if msg.CreatedAt.Valid {
+		createdAt = msg.CreatedAt.Time
+	}
 	return
 }
 
-func (d *Db) SaveMessageWithAuthor(m *Message, author *User) (int, int, error) {
-	uid, err := d.SaveUser(author)
-	if err != nil {
-		return 0, 0, err
-	}
-	m.AuthorID = uid
-	mid, err := d.SaveMessage(m)
-	if err != nil {
-		return 0, uid, err
-	}
-	return mid, uid, nil
+func (d *Db) SaveReaction(messageID, reactorID int32, emoji string) error {
+	return d.Queries.SaveReaction(context.Background(), sqlcdb.SaveReactionParams{
+		MessageID: messageID,
+		Emoji:     emoji,
+		ReactorID: reactorID,
+	})
 }
 
-func (d *Db) SaveReaction(r *Reaction) {
-	sqlQuery := `INSERT INTO reactions (message_id, emoji, reactor_id)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (message_id, emoji, reactor_id)
-		DO UPDATE SET emoji = EXCLUDED.emoji, reactor_id = EXCLUDED.reactor_id;`
+func (d *Db) UpdateMessageContent(messageID string, newMessage string) error {
+	ctx := context.Background()
 
-	_, err := d.Session.Exec(sqlQuery, r.MessageID, r.Emoji, r.ReactorID)
+	msg, err := d.Queries.GetMessageForEdit(ctx, messageID)
 	if err != nil {
-		fmt.Printf("unable to save reaction for message %d: %+v \n", r.MessageID, err.Error())
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("message not found")
+		}
+		return err
 	}
+
+	var history []EditEntry
+	if msg.EditHistory.Valid {
+		if err := json.Unmarshal(msg.EditHistory.RawMessage, &history); err != nil {
+			return fmt.Errorf("failed to parse edit_history: %w", err)
+		}
+	}
+
+	history = append(history, EditEntry{Content: msg.Content, ChangedAt: time.Now()})
+
+	historyJSON, err := json.Marshal(history)
+	if err != nil {
+		return fmt.Errorf("failed to marshal edit_history: %w", err)
+	}
+
+	return d.Queries.UpdateMessageContent(ctx, sqlcdb.UpdateMessageContentParams{
+		Content:     newMessage,
+		EditHistory: pqtype.NullRawMessage{RawMessage: historyJSON, Valid: true},
+		ID:          msg.ID,
+	})
 }
 
 func (d *Db) MarkChannelCompleted(channelId string) error {
@@ -170,10 +138,7 @@ VALUES ($1, $2)
 ON CONFLICT (channel_id) DO UPDATE SET completed_at = EXCLUDED.completed_at;`
 
 	_, err := d.Session.Exec(sqlQuery, channelId, time.Now())
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (d *Db) IsChannelCompleted(channelId string) (bool, error) {
@@ -199,41 +164,4 @@ ON CONFLICT (discord_id) DO UPDATE SET discord_id = EXCLUDED.discord_id;`
 	if err != nil {
 		fmt.Printf("unable to save channel %s name %s: %+v \n", channelId, channelName, err.Error())
 	}
-}
-
-func (d *Db) UpdateMessageContent(messageId string, newMessage string) error {
-	getQuery := "SELECT id, edit_history, content, discord_message_id FROM messages WHERE discord_message_id = $1"
-	putQuery := "UPDATE messages SET content = $1, edit_history = $2 WHERE id = $3"
-	updateTime := time.Now()
-
-	var message Message
-	var historyBytes []byte
-	err := d.Session.QueryRow(getQuery, messageId).Scan(&message.id, &historyBytes, &message.Content, &message.DiscordMessageID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return fmt.Errorf("message not found")
-		}
-		return err
-	}
-
-	if historyBytes != nil {
-		if err := json.Unmarshal(historyBytes, &message.EditHistory); err != nil {
-			return fmt.Errorf("failed to parse edit_history: %w", err)
-		}
-	}
-
-	editHistory := append(message.EditHistory, EditEntry{Content: message.Content, ChangedAt: updateTime})
-
-	historyJSON, err := json.Marshal(editHistory)
-	if err != nil {
-		return fmt.Errorf("failed to marshal edit_history: %w", err)
-	}
-
-	_, err = d.Session.Exec(putQuery, newMessage, historyJSON, message.id)
-	if err != nil {
-		fmt.Printf("unable to save updated message: '%s' messageId: %s error: %+v \n", newMessage, message.DiscordMessageID, err.Error())
-		return err
-	}
-
-	return nil
 }

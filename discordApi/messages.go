@@ -3,7 +3,6 @@ package discordapi
 import (
 	"fmt"
 
-	"choccobear.tech/emojiBot/database"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -66,26 +65,16 @@ func (d *Discord) saveMessageToDb(m *discordgo.MessageCreate) {
 		return
 	}
 
-	userID, err := d.Database.SaveUser(&database.User{
-		DiscordID:       m.Author.ID,
-		DiscordUsername: m.Author.Username,
-	})
+	userID, err := d.Database.SaveUser(m.Author.ID, m.Author.Username)
 	if err != nil {
 		fmt.Printf("OnMessageCreate: error saving user %s: %v\n", m.Author.Username, err)
 		return
 	}
 
-	_, err = d.Database.SaveMessage(&database.Message{
-		DiscordMessageID: m.ID,
-		ChannelID:        m.ChannelID,
-		AuthorID:         userID,
-		Content:          m.Content,
-		CreatedAt:        m.Timestamp,
-	})
+	_, err = d.Database.SaveMessage(m.ID, m.ChannelID, userID, m.Content, m.Timestamp)
 	if err != nil {
 		fmt.Printf("OnMessageCreate: error saving message %s: %v\n", m.ID, err)
 	}
-
 }
 
 func (d *Discord) reactToIntroMessage(m *discordgo.MessageCreate) {
