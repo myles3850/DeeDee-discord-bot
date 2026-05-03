@@ -18,7 +18,7 @@ migrate-create name:
 
 # run migrations: just migrate [up|down|reset|status]
 migrate status="up":
-    MIGRATE={{status}} go run .
+    go tool goose -dir ./database/migrations postgres "host=$DATABASE_HOST port=$DATABASE_PORT user=$DATABASE_USER password=$DATABASE_PASS dbname=$DATABASE_DB sslmode=disable" {{status}}
 
 # generate sqlc query code from database/queries/
 generate:
