@@ -2,7 +2,7 @@ set dotenv-load
 
 # start hot-reload dev server (requires db to be running)
 dev:
-    air
+    go tool air
 
 # start just the database container
 db:
