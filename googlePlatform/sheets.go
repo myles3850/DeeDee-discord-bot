@@ -31,10 +31,22 @@ func NewSheet(ctx context.Context) (*Sheet, error) {
 }
 
 // GetWorksheet returns all values from the named worksheet tab.
-func (s *Sheet) GetWorksheet(ctx context.Context, sheetName string) ([][]interface{}, error) {
-	resp, err := s.service.Spreadsheets.Values.Get(s.id, sheetName).Context(ctx).Do()
+func (s *Sheet) GetWorksheet(ctx context.Context, sheetName string) ([]string, error) {
+	var factsSlice []string
+	resp, err := s.service.Spreadsheets.Values.Get(s.id, sheetName).
+		ValueRenderOption("FORMATTED_VALUE").
+		Context(ctx).
+		Do()
+
 	if err != nil {
 		return nil, fmt.Errorf("reading worksheet %q: %w", sheetName, err)
 	}
-	return resp.Values, nil
+
+	for _, row := range resp.Values {
+		for _, cell := range row {
+			factsSlice = append(factsSlice, cell.(string))
+		}
+	}
+
+	return factsSlice, nil
 }
