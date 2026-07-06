@@ -22,7 +22,10 @@ func (d *Discord) timeoutBotRole(m *discordgo.GuildMemberUpdate) {
 	fmt.Printf("times out befdore: %b \n\n", alreadyTimedOut)
 	
 	if memberHasBotRole && !alreadyTimedOut {
-		d.Session.GuildMemberTimeout(d.GuildId, m.User.ID, &timeoutLength)
+		err:= d.Session.GuildMemberTimeout(d.GuildId, m.User.ID, &timeoutLength)
+		if err != nil {
+			fmt.Printf("errpr timing ouit: %v", err.Error())
+		}
 		embed := &discordgo.MessageEmbed{
 			Title: "A user has selected the Bot role",
 			Color: 0xFFDE21,
