@@ -43,6 +43,7 @@ func main() {
 	discordInstance.Session.AddHandler(discordInstance.OnMessageCreate)
 	discordInstance.Session.AddHandler(discordInstance.OnMessageDelete)
 	discordInstance.Session.AddHandler(discordInstance.OnMessageModified)
+	discordInstance.Session.AddHandler(discordInstance.OnRoleAdded)
 
 	if err := discordInstance.Session.Open(); err != nil {
 		panic("Error opening Discord session: " + err.Error())
