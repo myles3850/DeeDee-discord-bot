@@ -8,7 +8,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func (d *Discord) timeoutBotRole(m *discordgo.GuildMemberAdd) {
+func (d *Discord) timeoutBotRole(m *discordgo.GuildMemberUpdate) {
 	var role string = "1519435918224785458"
 	var botChannel = "1483226520951455750"
 

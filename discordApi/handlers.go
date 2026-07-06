@@ -57,6 +57,6 @@ func (d *Discord) OnMessageModified(s *discordgo.Session, m *discordgo.MessageUp
 	d.saveModifiedMessage(m)
 }
 
-func (d *Discord) OnRoleAdded(s *discordgo.Session, m *discordgo.GuildMemberAdd) {
+func (d *Discord) OnMemberUpdated(s *discordgo.Session, m *discordgo.GuildMemberUpdate) {
 	d.timeoutBotRole(m)
 }
