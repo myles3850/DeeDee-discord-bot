@@ -18,13 +18,14 @@ func (d *Discord) timeoutBotRole(m *discordgo.GuildMemberUpdate) {
 	memberHasBotRole := slices.Contains(memberRoles, role)
 	alreadyTimedOut := m.CommunicationDisabledUntil != nil && m.CommunicationDisabledUntil.After(time.Now())
 	fmt.Printf("roles: %v \n", memberRoles)
-	fmt.Printf("has bot role %b \n", memberHasBotRole)
-	fmt.Printf("times out befdore: %b \n\n", alreadyTimedOut)
+	fmt.Printf("has bot role %v \n", memberHasBotRole)
+	fmt.Printf("times out befdore: %v \n\n", alreadyTimedOut)
 	
 	if memberHasBotRole && !alreadyTimedOut {
-		err:= d.Session.GuildMemberTimeout(d.GuildId, m.User.ID, &timeoutLength)
+		fmt.Printf("entering timeout block for %s\n", m.User.ID)
+		err := d.Session.GuildMemberTimeout(d.GuildId, m.User.ID, &timeoutLength)
 		if err != nil {
-			fmt.Printf("errpr timing ouit: %v", err.Error())
+			fmt.Printf("error timing out: %v\n", err.Error())
 		}
 		embed := &discordgo.MessageEmbed{
 			Title: "A user has selected the Bot role",
@@ -35,6 +36,8 @@ func (d *Discord) timeoutBotRole(m *discordgo.GuildMemberUpdate) {
 			},
 		}
 
-		d.Session.ChannelMessageSendEmbed(botChannel, embed)
+		if _, err := d.Session.ChannelMessageSendEmbed(botChannel, embed); err != nil {
+			fmt.Printf("error sending embed: %v\n", err.Error())
+		}
 	}
 }
