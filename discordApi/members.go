@@ -17,7 +17,10 @@ func (d *Discord) timeoutBotRole(m *discordgo.GuildMemberUpdate) {
 	memberRoles := m.Roles
 	memberHasBotRole := slices.Contains(memberRoles, role)
 	alreadyTimedOut := m.CommunicationDisabledUntil != nil && m.CommunicationDisabledUntil.After(time.Now())
-
+	fmt.Printf("roles: %v \n", memberRoles)
+	fmt.Printf("has bot role %b \n", memberHasBotRole)
+	fmt.Printf("times out befdore: %b \n\n", alreadyTimedOut)
+	
 	if memberHasBotRole && !alreadyTimedOut {
 		d.Session.GuildMemberTimeout(d.GuildId, m.User.ID, &timeoutLength)
 		embed := &discordgo.MessageEmbed{
