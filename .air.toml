@@ -1,6 +1,6 @@
 [build]
-cmd = "go build -o ./tmp/bot ."
-bin = "./tmp/bot"
+cmd = "go build -o ./tmp/bot.exe ."
+bin = "./tmp/bot.exe"
 include_ext = ["go"]
 exclude_dir = ["tmp", "database/migrations"]
 delay = 500
