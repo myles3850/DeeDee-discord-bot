@@ -22,6 +22,7 @@ func Setup(db *database.Db, sheet *googleplatform.Sheet) (*Discord, error) {
 
 	discord, err := discordgo.New("Bot " + token)
 	discord.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent | discordgo.IntentsGuildMessageReactions
+	discord.StateEnabled = true
 
 	if err != nil {
 		fmt.Println("error creating Discord session: ", err)

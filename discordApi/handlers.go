@@ -33,7 +33,7 @@ func (d *Discord) OnReady(s *discordgo.Session, r *discordgo.Ready) {
 }
 
 func (d *Discord) OnMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	d.saveMessageToDb(m);
+	d.saveMessageToDb(m)
 
 	//if were in new members or welcome AND the message isn't a reply
 	if (m.ChannelID == "1483226521014636762" || m.ChannelID == "1483226521014636763") && m.ReferencedMessage == nil {
@@ -51,8 +51,12 @@ func (d *Discord) OnMessageModified(s *discordgo.Session, m *discordgo.MessageUp
 	}
 	// EditedTimestamp is only set when the user actually edits message text, so if it's
 	// nil this is an embed-load update, not a real edit.
-	if m.EditedTimestamp == nil{
+	if m.EditedTimestamp == nil {
 		return
 	}
 	d.saveModifiedMessage(m)
+}
+
+func (d *Discord) OnRoleAdded(s *discordgo.Session, m *discordgo.GuildMemberAdd) {
+	d.timeoutBotRole(m)
 }
