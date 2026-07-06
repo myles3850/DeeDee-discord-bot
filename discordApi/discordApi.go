@@ -21,7 +21,7 @@ func Setup(db *database.Db, sheet *googleplatform.Sheet) (*Discord, error) {
 	guildId := os.Getenv("DISCORD_GUILD_ID")
 
 	discord, err := discordgo.New("Bot " + token)
-	discord.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent | discordgo.IntentsGuildMessageReactions
+	discord.Identify.Intents = discordgo.IntentsGuilds | discordgo.IntentsGuildMessages | discordgo.IntentsMessageContent | discordgo.IntentsGuildMessageReactions | discordgo.IntentsAll
 	discord.StateEnabled = true
 
 	if err != nil {

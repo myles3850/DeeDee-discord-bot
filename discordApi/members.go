@@ -11,7 +11,6 @@ import (
 func (d *Discord) timeoutBotRole(m *discordgo.GuildMemberUpdate) {
 	var role string = "1519435918224785458"
 	var botChannel = "1483226520951455750"
-
 	// timeout length is 7 days
 	var timeoutLength time.Time = time.Now().Add(168 * time.Hour)
 
