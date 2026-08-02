@@ -19,6 +19,7 @@ func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 		author = fmt.Sprintf("<@%s>", m.Author.ID)
 	}
 
+
 	// use db as fallback for any missing fields
 	dbContent, dbUsername, dbChannelID, dbCreatedAt, err := d.Database.GetMessageWithAuthor(m.ID)
 	if err != nil {
@@ -43,12 +44,24 @@ func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 		sentAt = fmt.Sprintf("<t:%d:F>", createdAt.Unix())
 	}
 
+	category := "None"
+	if channel, err := d.Session.Channel(channelID); err != nil {
+		fmt.Printf("handleDeletedMessage: failed to fetch channel %s: %v\n", channelID, err)
+	} else if channel.ParentID != "" {
+		if parent, err := d.Session.Channel(channel.ParentID); err != nil {
+			fmt.Printf("handleDeletedMessage: failed to fetch parent channel %s: %v\n", channel.ParentID, err)
+		} else {
+			category = parent.Name
+		}
+	}
+
 	embed := &discordgo.MessageEmbed{
 		Title: "Message Deleted",
 		Color: 0xED4245,
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "Author", Value: author, Inline: true},
 			{Name: "Channel", Value: fmt.Sprintf("<#%s>", channelID), Inline: true},
+			{Name: "Category", Value: category, Inline: true},
 			{Name: "Sent", Value: sentAt, Inline: true},
 			{Name: "Content", Value: content, Inline: false},
 		},
