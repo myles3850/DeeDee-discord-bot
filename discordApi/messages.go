@@ -8,7 +8,8 @@ import (
 
 func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 	//? we should find a place for these, maybe db but for now its living here
-	var botChannel = "1483226520951455750"
+	const botChannel = "1483226520951455750"
+	const modmailCategory string = "1483226520637018127"
 
 	channelID := m.ChannelID
 	content := m.Content
@@ -19,6 +20,16 @@ func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 		author = fmt.Sprintf("<@%s>", m.Author.ID)
 	}
 
+	var channelParentID string
+	channel, err := d.Session.Channel(channelID)
+	if err == nil {
+		channelParentID = channel.ParentID
+	}
+
+	//we ignore anything happening in modmail so as to not get flooded
+	if channelParentID == modmailCategory {
+		return
+	}
 
 	// use db as fallback for any missing fields
 	dbContent, dbUsername, dbChannelID, dbCreatedAt, err := d.Database.GetMessageWithAuthor(m.ID)
@@ -45,11 +56,9 @@ func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 	}
 
 	category := "None"
-	if channel, err := d.Session.Channel(channelID); err != nil {
-		fmt.Printf("handleDeletedMessage: failed to fetch channel %s: %v\n", channelID, err)
-	} else if channel.ParentID != "" {
-		if parent, err := d.Session.Channel(channel.ParentID); err != nil {
-			fmt.Printf("handleDeletedMessage: failed to fetch parent channel %s: %v\n", channel.ParentID, err)
+	if channelParentID != "" {
+		if parent, err := d.Session.Channel(channelParentID); err != nil {
+			fmt.Printf("handleDeletedMessage: failed to fetch parent channel %s: %v\n", channelParentID, err)
 		} else {
 			category = parent.Name
 		}
