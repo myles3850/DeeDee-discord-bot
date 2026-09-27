@@ -13,12 +13,16 @@ A Discord bot for community management and engagement. She helps to manage messa
 
 ## Prerequisites
 
+Works the same on macOS, Linux, and Windows — every project command runs through `just`, which is configured to use the right shell on each platform (see `justfile`'s `windows-shell` setting).
+
 | Tool | Purpose | Install |
 |---|---|---|
 | Go 1.26+ | Application runtime | [go.dev/dl](https://go.dev/dl/) |
-| Docker | Runs the Postgres container | [docs.docker.com](https://docs.docker.com/get-docker/) |
-| just | Command runner (like `make`, but simpler — all project commands live in `justfile`) | `brew install just` or [just.systems](https://just.systems/man/en/packages.html) |
+| Docker | Runs the Postgres container | [docs.docker.com](https://docs.docker.com/get-docker/) — on Windows and macOS this means Docker Desktop (WSL2 backend on Windows) |
+| just | Command runner (like `make`, but simpler — all project commands live in `justfile`) | macOS/Linux: `brew install just`. Windows: `winget install --id Casey.Just` or `scoop install just`. Anything else: [just.systems](https://just.systems/man/en/packages.html) |
 | Air | Hot-reloads the app on file changes during development | No separate install — managed as a Go tool dependency (`go tool air`) |
+
+On Windows, run these from PowerShell or Windows Terminal (not `cmd.exe`).
 
 ## Quick start
 
