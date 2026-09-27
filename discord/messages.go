@@ -1,16 +1,35 @@
-package discordapi
+package discord
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
-	//? we should find a place for these, maybe db but for now its living here
-	const botChannel = "1483226520951455750"
-	const modmailCategory string = "1483226520637018127"
+func (d *Discord) saveMessageToDb(m *discordgo.MessageCreate) {
+	if m.Author == nil || m.Author.Bot {
+		return
+	}
 
+	userID, err := d.Database.SaveUser(m.Author.ID, m.Author.Username)
+	if err != nil {
+		slog.Error("OnMessageCreate: error saving user", "username", m.Author.Username, "error", err)
+		return
+	}
+
+	if _, err := d.Database.SaveMessage(m.ID, m.ChannelID, userID, m.Content, m.Timestamp); err != nil {
+		slog.Error("OnMessageCreate: error saving message", "messageId", m.ID, "error", err)
+	}
+}
+
+func (d *Discord) reactToIntroMessage(m *discordgo.MessageCreate) {
+	if err := d.Session.MessageReactionAdd(m.ChannelID, m.Message.ID, "birbwave:1492652393433796890"); err != nil {
+		slog.Error("reacting to intro message", "messageId", m.Message.ID, "error", err)
+	}
+}
+
+func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 	channelID := m.ChannelID
 	content := m.Content
 	createdAt := m.Timestamp
@@ -26,15 +45,15 @@ func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 		channelParentID = channel.ParentID
 	}
 
-	//we ignore anything happening in modmail so as to not get flooded
-	if channelParentID == modmailCategory {
+	// ignore anything happening in modmail so as to not get flooded
+	if channelParentID == modmailCategoryID {
 		return
 	}
 
 	// use db as fallback for any missing fields
 	dbContent, dbUsername, dbChannelID, dbCreatedAt, err := d.Database.GetMessageWithAuthor(m.ID)
 	if err != nil {
-		fmt.Printf("handleDeletedMessage: db lookup failed for %s: %v\n", m.ID, err)
+		slog.Error("handleDeletedMessage: db lookup failed", "messageId", m.ID, "error", err)
 	} else {
 		if channelID == "" {
 			channelID = dbChannelID
@@ -58,7 +77,7 @@ func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 	category := "None"
 	if channelParentID != "" {
 		if parent, err := d.Session.Channel(channelParentID); err != nil {
-			fmt.Printf("handleDeletedMessage: failed to fetch parent channel %s: %v\n", channelParentID, err)
+			slog.Error("handleDeletedMessage: failed to fetch parent channel", "channelId", channelParentID, "error", err)
 		} else {
 			category = parent.Name
 		}
@@ -79,30 +98,13 @@ func (d *Discord) handleDeletedMessage(m *discordgo.MessageDelete) {
 		},
 	}
 
-	d.Session.ChannelMessageSendEmbed(botChannel, embed)
-}
-
-func (d *Discord) saveMessageToDb(m *discordgo.MessageCreate) {
-	if m.Author == nil || m.Author.Bot {
-		return
+	if _, err := d.Session.ChannelMessageSendEmbed(modLogChannelID, embed); err != nil {
+		slog.Error("handleDeletedMessage: failed to send embed", "error", err)
 	}
-
-	userID, err := d.Database.SaveUser(m.Author.ID, m.Author.Username)
-	if err != nil {
-		fmt.Printf("OnMessageCreate: error saving user %s: %v\n", m.Author.Username, err)
-		return
-	}
-
-	_, err = d.Database.SaveMessage(m.ID, m.ChannelID, userID, m.Content, m.Timestamp)
-	if err != nil {
-		fmt.Printf("OnMessageCreate: error saving message %s: %v\n", m.ID, err)
-	}
-}
-
-func (d *Discord) reactToIntroMessage(m *discordgo.MessageCreate) {
-	d.Session.MessageReactionAdd(m.ChannelID, m.Message.ID, "birbwave:1492652393433796890")
 }
 
 func (d *Discord) saveModifiedMessage(m *discordgo.MessageUpdate) {
-	_ = d.Database.UpdateMessageContent(m.ID, m.Content)
+	if err := d.Database.UpdateMessageContent(m.ID, m.Content); err != nil {
+		slog.Error("saving modified message", "messageId", m.ID, "error", err)
+	}
 }

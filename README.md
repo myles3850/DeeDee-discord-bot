@@ -78,10 +78,10 @@ just generate                  # regenerate sqlc query code after editing databa
 
 ```
 main.go
-  ├── googlePlatform   Google Sheets client (initialised first)
+  ├── googleplatform   Google Sheets client (initialised first)
   ├── database         Postgres connection + migrations
-  ├── discordApi       Discord bot (gateway events + slash commands)
-  └── webApi           Gin REST API (emoji / role management)
+  ├── discord          Discord bot (gateway events + slash commands)
+  └── webapi           REST API (emoji / role management + health check)
 ```
 
 `main.go` wires everything together: it passes the database and Google Sheets instances into the Discord bot, registers event handlers, then starts the HTTP server. The web API endpoints call back into the Discord instance for live guild data.
@@ -91,9 +91,10 @@ main.go
 | Module | README | Purpose |
 |---|---|---|
 | `database/` | [database/README.md](database/README.md) | Postgres layer — schema migrations (goose) and query generation (sqlc) |
-| `discordApi/` | [discordApi/README.md](discordApi/README.md) | Gateway event handlers and slash commands |
-| `webApi/` | [webApi/README.md](webApi/README.md) | Gin REST API — emoji and role endpoints |
-| `googlePlatform/` | [googlePlatform/README.md](googlePlatform/README.md) | Google Sheets client |
+| `discord/` | [discord/README.md](discord/README.md) | Gateway event handlers and slash commands |
+| `webapi/` | [webapi/README.md](webapi/README.md) | REST API — emoji, role, and health endpoints |
+| `googleplatform/` | [googleplatform/README.md](googleplatform/README.md) | Google Sheets client |
+| `cmd/healthcheck/` | — | Standalone binary used by the Docker `HEALTHCHECK` (see [Docker](#docker) below) |
 
 ## Stack
 
@@ -102,11 +103,13 @@ main.go
 - **PostgreSQL** — persistence
 - **[goose](https://github.com/pressly/goose)** — schema migrations (run via `go tool goose`, no separate install)
 - **[sqlc](https://sqlc.dev)** — generates type-safe Go query code from raw SQL (run via `go tool sqlc`, no separate install)
-- **[Gin](https://gin-gonic.com)** — HTTP framework
+- **`net/http`** — the REST API is plain stdlib, no framework needed for four routes
 
 ## Docker
 
 The `compose.yaml` defines two services: the bot application (mapped to port 3863) and Postgres 17 (mapped to port 5434). The database has a health check so the app waits until Postgres is ready before starting.
+
+The bot image is built `FROM scratch`, so it has no shell, `curl`, or `wget` for a conventional health check command. Instead, the Dockerfile builds a second tiny binary from `cmd/healthcheck/` that hits the bot's own `GET /health` endpoint, and `HEALTHCHECK` runs that binary directly — this is what a Docker dashboard like [Arcane](https://getarcane.app/) uses to show the container's live status.
 
 ```sh
 docker compose up      # start both services

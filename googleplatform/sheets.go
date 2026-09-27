@@ -1,3 +1,5 @@
+// Package googleplatform is a read-only Google Sheets client, used to read
+// spreadsheet data via a service account.
 package googleplatform
 
 import (

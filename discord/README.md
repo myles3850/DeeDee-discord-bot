@@ -1,6 +1,8 @@
-# discordApi
+# discord
 
 Discord bot integration. Manages the gateway connection, registers slash commands, and handles all incoming events.
+
+Guild-specific IDs (channels, roles, the modmail category) live as named constants in `constants.go` — this is a private, single-guild bot, so these aren't secrets and don't need to be environment variables. Add new ones there rather than inlining literals in a handler.
 
 ## Setup
 
@@ -65,7 +67,7 @@ Registered on `OnReady` via the Discord Application Commands API. All commands a
 
 There are three moving parts that need to stay in sync:
 
-**1. The name constant** — every command name is stored as a field on the `CommandName` struct and set in the `names` variable at the top of `slashCommands.go`. This means the name is defined once and referenced everywhere, so a typo won't silently break routing.
+**1. The name constant** — every command name is a `const` at the top of `slashCommands.go` (`cmdWheel`, `cmdEightBall`, etc). This means the name is defined once and referenced everywhere, so a typo won't silently break routing.
 
 **2. The command definition** — inside `RegisterCommands()` there is a `commands` slice. Each entry tells Discord what the command is called, what it does, and what options (arguments) it accepts. Discord shows this to users in the slash command picker. Options have a type (`String`, `Integer`, etc.), a description, and a `Required` flag. The full list of available option types is on the [discordgo pkg.go.dev page for `ApplicationCommandOptionType`](https://pkg.go.dev/github.com/bwmarrin/discordgo#ApplicationCommandOptionType).
 
@@ -73,21 +75,21 @@ There are three moving parts that need to stay in sync:
 
 ```go
 switch data.Name {
-case names.wheel:
+case cmdWheel:
     d.processWheelCommand(i)
-case names.eightBall:
+case cmdEightBall:
     d.process8BallCommand(i)
 // ...
 }
 ```
 
-Each processor is a method on `*Discord`, so it has full access to `d.Database`, `d.Session`, and `d.Sheet`. They live in `slashCommands.go` and respond to the user by calling `d.Session.InteractionRespond(...)`.
+Each processor is a method on `*Discord`, so it has full access to `d.Database`, `d.Session`, and `d.Sheet`. They live in `slashCommands.go` and respond to the user via the shared `respond(session, interaction, content)` helper, which wraps `InteractionRespond` and logs failures instead of dropping them silently.
 
 ### Reading an existing command
 
 To understand any command, find these three things in `slashCommands.go`:
 
-- Its entry in the `names` variable — this is the string Discord routes on
+- Its `const` — this is the string Discord routes on
 - Its entry in the `commands` slice in `RegisterCommands()` — this shows what options the user can pass
 - Its `process<Name>Command` method — this is what actually runs
 
@@ -97,41 +99,31 @@ Options passed by the user come through as `interaction.ApplicationCommandData()
 
 The example below adds a `/coinflip` command that picks heads or tails.
 
-1. **Register the name.** Add a field to the `CommandName` struct and set it in `names`:
+1. **Register the name.** Add a `const` next to the others:
    ```go
-   type CommandName struct {
-       // ...
-       coinFlip string
-   }
-   var names = &CommandName{..., coinFlip: "coinflip"}
+   const cmdCoinFlip = "coinflip"
    ```
 
 2. **Define the command.** Add an entry to the `commands` slice in `RegisterCommands()`. This one takes no options — just omit the `Options` field entirely:
    ```go
    {
-       Name:        names.coinFlip,
+       Name:        cmdCoinFlip,
        Description: "Flip a coin",
    },
    ```
 
-3. **Write the processor.** Add a method to `*Discord` in `slashCommands.go`:
+3. **Write the processor.** Add a method to `*Discord` in `slashCommands.go`, responding via the shared `respond` helper:
    ```go
    func (d *Discord) processCoinFlipCommand(i *discordgo.InteractionCreate) {
        sides := []string{"Heads", "Tails"}
        result := sides[rand.Intn(len(sides))]
-
-       d.Session.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-           Type: discordgo.InteractionResponseChannelMessageWithSource,
-           Data: &discordgo.InteractionResponseData{
-               Content: fmt.Sprintf("🪙 %s!", result),
-           },
-       })
+       respond(d.Session, i.Interaction, fmt.Sprintf("🪙 %s!", result))
    }
    ```
 
 4. **Wire up the router.** Add a `case` to the `switch` in `OnInteraction` in `handlers.go`:
    ```go
-   case names.coinFlip:
+   case cmdCoinFlip:
        d.processCoinFlipCommand(i)
    ```
 
@@ -144,7 +136,7 @@ The command registers with Discord automatically the next time the bot starts. D
 **Defining an option** — add it to the `Options` field in the command definition:
 ```go
 {
-    Name:        names.coinFlip,
+    Name:        cmdCoinFlip,
     Description: "Flip a coin",
     Options: []*discordgo.ApplicationCommandOption{
         {
@@ -173,12 +165,7 @@ func (d *Discord) processCoinFlipCommand(i *discordgo.InteractionCreate) {
         wagerText = fmt.Sprintf(" You wagered: %s.", opts[0].StringValue())
     }
 
-    d.Session.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-        Type: discordgo.InteractionResponseChannelMessageWithSource,
-        Data: &discordgo.InteractionResponseData{
-            Content: fmt.Sprintf("🪙 %s!%s", result, wagerText),
-        },
-    })
+    respond(d.Session, i.Interaction, fmt.Sprintf("🪙 %s!%s", result, wagerText))
 }
 ```
 
@@ -212,11 +199,10 @@ Sends one of two custom animated shake emotes at random.
 
 ## Guild data methods
 
-These are called by the REST API layer (`webApi`) via the `Discord` struct:
+These are called by the REST API layer (`webapi`), which declares its own `discordClient` interface naming exactly these methods and takes a `*Discord` through it — see [webapi/README.md](../webapi/README.md):
 
 | Method | Description |
 |---|---|
 | `GetAllEmojis()` | Returns all custom emojis in the guild |
-| `GetOneEmoji(id)` | Returns a single emoji by ID |
 | `GetAllRoles()` | Returns all roles in the guild |
-| `EditEmojiRoles(emojiId, params)` | Updates the role restrictions on an emoji |
+| `EditEmojiRoles(emojiID, params)` | Updates the role restrictions on an emoji |
