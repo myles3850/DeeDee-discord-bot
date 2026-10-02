@@ -1,32 +1,45 @@
-package discordapi
+package discord
 
 import (
 	"fmt"
+	"log/slog"
 	"math/rand"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-type CommandName struct {
-	wheel      string
-	eightBall  string
-	processOld string
-	shake      string
-}
+const (
+	cmdWheel      = "wheel"
+	cmdEightBall  = "eight_ball"
+	cmdProcessOld = "process_old_messages"
+	cmdShake      = "shake"
+)
 
-var names = &CommandName{wheel: "wheel", eightBall: "eight_ball", processOld: "process_old_messages", shake: "shake"}
+// respond sends a plain-text interaction response, logging any failure
+// instead of dropping it.
+func respond(s *discordgo.Session, i *discordgo.Interaction, content string) {
+	err := s.InteractionRespond(i, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: content,
+		},
+	})
+	if err != nil {
+		slog.Error("responding to interaction", "error", err)
+	}
+}
 
 func (d *Discord) RegisterCommands() {
 	s := d.Session
 	appID := s.State.User.ID
-	guildID := d.GuildId
+	guildID := d.GuildID
 	minStringLength := 2
 	var defaultMemberPermissions int64 = discordgo.PermissionManageGuild
 
 	commands := []*discordgo.ApplicationCommand{
 		{
-			Name:        names.wheel,
+			Name:        cmdWheel,
 			Description: "Give me a selection, and ill pick one for you",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
@@ -74,7 +87,7 @@ func (d *Discord) RegisterCommands() {
 			},
 		},
 		{
-			Name:        names.eightBall,
+			Name:        cmdEightBall,
 			Description: "ask DeeDee to shake the mystical 8 ball for you",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
@@ -87,12 +100,12 @@ func (d *Discord) RegisterCommands() {
 			},
 		},
 		{
-			Name:                     names.processOld,
+			Name:                     cmdProcessOld,
 			Description:              "run through all old messages",
 			DefaultMemberPermissions: &defaultMemberPermissions,
 		},
 		{
-			Name:        names.shake,
+			Name:        cmdShake,
 			Description: "sends special shake emote",
 		},
 	}
@@ -100,43 +113,29 @@ func (d *Discord) RegisterCommands() {
 	for _, cmd := range commands {
 		_, err := s.ApplicationCommandCreate(appID, guildID, cmd)
 		if err != nil {
-			fmt.Printf("❌ Cannot create command '%v': %v\n", cmd.Name, err)
+			slog.Error("registering command", "command", cmd.Name, "error", err)
 		} else {
-			fmt.Printf("✅ Registered command '%v'\n", cmd.Name)
+			slog.Info("registered command", "command", cmd.Name)
 		}
 	}
 }
 
-//from here all functions are processing functions
-
 func (d *Discord) processWheelCommand(interaction *discordgo.InteractionCreate) {
-	var options []string
 	data := interaction.ApplicationCommandData()
-	session := d.Session
 	user := interaction.Member.Nick
 
 	if len(data.Options) == 0 {
-		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("sorry, %s, but i cant seem to find your options :(", user),
-			},
-		})
-
-	}
-	for _, option := range data.Options {
-		options = append(options, option.StringValue())
+		respond(d.Session, interaction.Interaction, fmt.Sprintf("sorry, %s, but i cant seem to find your options :(", user))
+		return
 	}
 
-	// i know im going to forget how this shit works, it gets the length of options and passes to intn which gives a random number based on how many are in the slice
+	options := make([]string, len(data.Options))
+	for i, option := range data.Options {
+		options[i] = option.StringValue()
+	}
+
 	chosen := options[rand.Intn(len(options))]
-
-	session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("Interesting choices... im feeling %s this time.", chosen),
-		},
-	})
+	respond(d.Session, interaction.Interaction, fmt.Sprintf("Interesting choices... im feeling %s this time.", chosen))
 }
 
 func (d *Discord) process8BallCommand(interaction *discordgo.InteractionCreate) {
@@ -160,118 +159,94 @@ func (d *Discord) process8BallCommand(interaction *discordgo.InteractionCreate) 
 		"It's reply is no",
 		"It's sources say no",
 		"Outlook not so good",
-		"Very doubtful"}
+		"Very doubtful",
+	}
 
-	session := d.Session
 	data := interaction.ApplicationCommandData()
 	question := data.Options[0].StringValue()
 	user := interaction.Member.Nick
 
 	if len(question) == 0 {
-		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("sorry, %s, but the ball refuses to answer my call :(", user),
-			},
-		})
+		respond(d.Session, interaction.Interaction, fmt.Sprintf("sorry, %s, but the ball refuses to answer my call :(", user))
 		return
 	}
 
 	questionOfLife := "what is the answer to life the universe and everything"
-
 	if strings.Contains(question, questionOfLife) {
-		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("I asked the magical 8 ball \"%s\" , and it said **42**.", question),
-			},
-		})
+		respond(d.Session, interaction.Interaction, fmt.Sprintf("I asked the magical 8 ball \"%s\" , and it said **42**.", question))
 		return
 	}
 
 	selectedAnswer := ballAnswers[rand.Intn(len(ballAnswers))]
-
-	session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("I asked the magical 8 ball \"%s\" , and it said **%s**.", question, selectedAnswer),
-		},
-	})
+	respond(d.Session, interaction.Interaction, fmt.Sprintf("I asked the magical 8 ball \"%s\" , and it said **%s**.", question, selectedAnswer))
 }
 
 func (d *Discord) ProcessOldMessages(interaction *discordgo.InteractionCreate) {
 	const fetchMessageBatchSize = 100
 
-	d.Session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: "getting you the info now...",
-		},
-	})
+	respond(d.Session, interaction.Interaction, "getting you the info now...")
 
-	channels, err := d.Session.GuildChannels(d.GuildId)
+	channels, err := d.Session.GuildChannels(d.GuildID)
 	if err != nil {
-		fmt.Printf("%+v", err)
+		slog.Error("ProcessOldMessages: listing channels", "error", err)
 	}
 
 	for _, channel := range channels {
 		channelComplete, _ := d.Database.IsChannelCompleted(channel.ID)
-		d.Database.SaveChannelName(channel.ID, channel.Name)
+		if err := d.Database.SaveChannelName(channel.ID, channel.Name); err != nil {
+			slog.Error("ProcessOldMessages: saving channel name", "channelId", channel.ID, "error", err)
+		}
 		if channelComplete {
-			fmt.Printf("skipping channel %s as already completed \n", channel.Name)
+			slog.Info("ProcessOldMessages: skipping already-completed channel", "channel", channel.Name)
 			continue
 		}
+
 		var lastMessage string
 		for {
-			fmt.Printf("processing messages from channel %s \n", channel.Name)
+			slog.Info("ProcessOldMessages: processing channel", "channel", channel.Name)
 			messages, err := d.Session.ChannelMessages(channel.ID, fetchMessageBatchSize, lastMessage, "", "")
 			if err != nil {
-				fmt.Printf("%+v", err)
+				slog.Error("ProcessOldMessages: fetching messages", "channel", channel.Name, "error", err)
 			}
 			if len(messages) == 0 {
 				break
 			}
+
 			for _, message := range messages {
-				fmt.Printf("Processing message: %s\n", message.ID)
 				userID, err := d.Database.SaveUser(message.Author.ID, message.Author.Username)
 				if err != nil {
-					fmt.Printf("Error saving user: %+v\n", err)
+					slog.Error("ProcessOldMessages: saving user", "userId", message.Author.ID, "error", err)
 					break
 				}
 				messageID, err := d.Database.SaveMessage(message.ID, channel.ID, userID, "", message.Timestamp)
 				if err != nil {
-					fmt.Printf("Error saving message: %+v\n", err)
+					slog.Error("ProcessOldMessages: saving message", "messageId", message.ID, "error", err)
 					break
 				}
-				if len(message.Reactions) > 0 {
-					for _, react := range message.Reactions {
-						if err := d.Database.SaveReaction(messageID, userID, react.Emoji.Name); err != nil {
-							fmt.Printf("Error saving reaction: %+v\n", err)
-						}
+				for _, react := range message.Reactions {
+					if err := d.Database.SaveReaction(messageID, userID, react.Emoji.Name); err != nil {
+						slog.Error("ProcessOldMessages: saving reaction", "messageId", message.ID, "error", err)
 					}
 				}
 			}
+
 			if len(messages) < fetchMessageBatchSize {
-				_ = d.Database.MarkChannelCompleted(channel.ID)
-				lastMessage = ""
+				if err := d.Database.MarkChannelCompleted(channel.ID); err != nil {
+					slog.Error("ProcessOldMessages: marking channel completed", "channelId", channel.ID, "error", err)
+				}
 				break
 			}
 			lastMessage = messages[len(messages)-1].ID
 		}
 	}
-	d.Session.ChannelMessageSend(interaction.ChannelID, "all messages processed")
+
+	if _, err := d.Session.ChannelMessageSend(interaction.ChannelID, "all messages processed"); err != nil {
+		slog.Error("ProcessOldMessages: sending completion message", "error", err)
+	}
 }
 
 func (d *Discord) processShakeCommand(interaction *discordgo.InteractionCreate) {
-	session := d.Session
 	emotes := []string{"<a:choccoREALLYhappyshakehuggers:1483236483132293293>", "<a:iraelythREALLYhappyshakehuggers:1483236185584308407>"}
-
 	selectedAnswer := emotes[rand.Intn(len(emotes))]
-
-	session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: selectedAnswer,
-		},
-	})
+	respond(d.Session, interaction.Interaction, selectedAnswer)
 }

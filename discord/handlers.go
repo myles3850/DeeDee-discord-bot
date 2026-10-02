@@ -1,11 +1,14 @@
-package discordapi
+package discord
 
 import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func (d *Discord) OnInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (d *Discord) OnReady(s *discordgo.Session, r *discordgo.Ready) {
+	d.RegisterCommands()
+}
 
+func (d *Discord) OnInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if i.Type != discordgo.InteractionApplicationCommand {
 		return
 	}
@@ -13,30 +16,22 @@ func (d *Discord) OnInteraction(s *discordgo.Session, i *discordgo.InteractionCr
 	data := i.ApplicationCommandData()
 
 	switch data.Name {
-	case names.wheel:
+	case cmdWheel:
 		d.processWheelCommand(i)
-		return
-	case names.eightBall:
+	case cmdEightBall:
 		d.process8BallCommand(i)
-		return
-	case names.processOld:
+	case cmdProcessOld:
 		d.ProcessOldMessages(i)
-		return
-	case names.shake:
+	case cmdShake:
 		d.processShakeCommand(i)
 	}
-
-}
-
-func (d *Discord) OnReady(s *discordgo.Session, r *discordgo.Ready) {
-	d.RegisterCommands()
 }
 
 func (d *Discord) OnMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	d.saveMessageToDb(m)
 
-	//if were in new members or welcome AND the message isn't a reply
-	if (m.ChannelID == "1483226521014636762" || m.ChannelID == "1483226521014636763") && m.ReferencedMessage == nil {
+	introChannel := m.ChannelID == newMemberChannelID || m.ChannelID == welcomeChannelID
+	if introChannel && m.ReferencedMessage == nil {
 		d.reactToIntroMessage(m)
 	}
 }
