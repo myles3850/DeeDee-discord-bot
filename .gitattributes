@@ -1,0 +1,5 @@
+# Normalize line endings to LF for everyone, regardless of platform or local
+# git config. Windows' git defaults to converting checked-out text files to
+# CRLF, which breaks `just`'s recipe parser (and is a source of pointless
+# diffs) — this keeps every checkout byte-identical across Mac/Linux/Windows.
+* text=auto eol=lf

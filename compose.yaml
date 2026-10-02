@@ -1,0 +1,36 @@
+services:
+  bot:
+    build: .
+    env_file: .env
+    ports:
+      - "127.0.0.1:3863:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - deedee
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASS}
+      POSTGRES_DB: ${DATABASE_DB}
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER} -d ${DATABASE_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - deedee
+
+volumes:
+  postgres_data:
+
+networks:
+  deedee:

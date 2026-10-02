@@ -1,4 +1,4 @@
-
+-- +goose Up
 CREATE TABLE IF NOT EXISTS messages (
 	id SERIAL PRIMARY KEY,
 	discord_message_id VARCHAR(255) NOT NULL UNIQUE,
@@ -18,3 +18,8 @@ CREATE TABLE IF NOT EXISTS reactions (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_unique ON reactions(message_id, emoji, reactor_id);
+
+-- +goose Down
+DROP INDEX IF EXISTS idx_reactions_unique;
+DROP TABLE IF EXISTS reactions;
+DROP TABLE IF EXISTS messages;

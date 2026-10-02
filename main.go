@@ -1,63 +1,85 @@
 package main
 
 import (
-	"choccobear.tech/emojiBot/database"
-	discordapi "choccobear.tech/emojiBot/discordApi"
-	webapi "choccobear.tech/emojiBot/webApi"
+	"context"
+	"log"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
-	"github.com/gin-gonic/gin"
+	"choccobear.tech/deedee/database"
+	"choccobear.tech/deedee/discord"
+	"choccobear.tech/deedee/googleplatform"
+	"choccobear.tech/deedee/webapi"
+
 	"github.com/joho/godotenv"
 )
 
-var databaseInstance *database.Db
-var discordInstance *discordapi.Discord
-var apiInstance *webapi.WebCtx
+var (
+	databaseInstance *database.Db
+	discordInstance  *discord.Discord
+)
 
 func init() {
-	godotenv.Load()
-	var error error
+	_ = godotenv.Load()
 
-	databaseInstance = database.Setup()
-	discordInstance, error = discordapi.Setup(databaseInstance)
-	apiInstance = webapi.Setup()
-
-	if error != nil {
-		panic(3)
+	sheet, err := googleplatform.NewSheet(context.Background())
+	if err != nil {
+		log.Fatalf("initialising Google Sheet: %v", err)
 	}
 
+	databaseInstance, err = database.Setup()
+	if err != nil {
+		log.Fatalf("initialising database: %v", err)
+	}
+
+	discordInstance, err = discord.Setup(databaseInstance, sheet)
+	if err != nil {
+		log.Fatalf("initialising discord session: %v", err)
+	}
 }
 
 func main() {
-	defer databaseInstance.Session.Close()
+	discordInstance.Session.AddHandler(discordInstance.OnReady)
+	discordInstance.Session.AddHandler(discordInstance.OnInteraction)
+	discordInstance.Session.AddHandler(discordInstance.OnMessageCreate)
+	discordInstance.Session.AddHandler(discordInstance.OnMessageDelete)
+	discordInstance.Session.AddHandler(discordInstance.OnMessageModified)
+	discordInstance.Session.AddHandler(discordInstance.OnMemberUpdated)
 
 	if err := discordInstance.Session.Open(); err != nil {
-		panic("Error opening Discord session: " + err.Error())
+		log.Fatalf("opening discord session: %v", err)
 	}
-	defer discordInstance.Session.Close()
-	println("🤖 Bot is running and connected to Discord!")
+	slog.Info("bot is running and connected to discord")
 
-	discordInstance.RegisterCommands()
-	discordInstance.Session.AddHandler(discordInstance.OnInteraction)
+	mux := webapi.NewMux(discordInstance, databaseInstance.Ping)
+	httpServer := &http.Server{Addr: ":8080", Handler: mux}
 
-	server := apiInstance.Gin
-	registerApiEndpoints(apiInstance.Gin, discordInstance, apiInstance)
+	go func() {
+		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			slog.Error("http server error", "error", err)
+		}
+	}()
 
-	server.Run()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	<-ctx.Done()
 
-}
+	slog.Info("shutting down")
 
-func registerApiEndpoints(server *gin.Engine, discord *discordapi.Discord, web *webapi.WebCtx) {
-	server.GET("emoji", func(ctx *gin.Context) {
-		emojis := discord.GetAllEmojis()
-		web.GetAllEmojis(ctx, emojis)
-	})
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	server.POST("emoji/:id/role", func(ctx *gin.Context) {
-		id := ctx.Param("id")
-		discord.EditEmojiRoles(id, web.UpdateEmojiRoles(ctx))
-	})
-
-	server.GET("role", func(ctx *gin.Context) {
-		web.GetAllRoles(ctx, discord.GetAllRoles())
-	})
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		slog.Error("shutting down http server", "error", err)
+	}
+	if err := discordInstance.Session.Close(); err != nil {
+		slog.Error("closing discord session", "error", err)
+	}
+	if err := databaseInstance.Close(); err != nil {
+		slog.Error("closing database", "error", err)
+	}
 }
