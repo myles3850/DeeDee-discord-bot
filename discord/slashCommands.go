@@ -21,6 +21,7 @@ const (
 
 	cmdSendBirthdays = "send_birthdays"
 	cmdCheckBirthday = "check_birthday"
+	cmdWishBirthday  = "wish_birthday"
 
 	cmdBirthdaysAdd    = "add"
 	cmdBirthdaysCheck  = "check"
@@ -187,6 +188,19 @@ func (d *Discord) RegisterCommands() {
 				{
 					Name:        "user",
 					Description: "whose birthday to check",
+					Type:        discordgo.ApplicationCommandOptionUser,
+					Required:    true,
+				},
+			},
+		},
+		{
+			Name:                     cmdWishBirthday,
+			Description:              "post a happy birthday message for someone",
+			DefaultMemberPermissions: &defaultMemberPermissions,
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Name:        "user",
+					Description: "who to wish happy birthday",
 					Type:        discordgo.ApplicationCommandOptionUser,
 					Required:    true,
 				},
@@ -437,4 +451,16 @@ func (d *Discord) processSendBirthdaysCommand(interaction *discordgo.Interaction
 		people = "person"
 	}
 	respondEphemeral(d.Session, interaction.Interaction, fmt.Sprintf("sent today's birthday message for %d %s.", sent, people))
+}
+
+func (d *Discord) processWishBirthdayCommand(interaction *discordgo.InteractionCreate) {
+	target := interaction.ApplicationCommandData().Options[0].UserValue(d.Session)
+
+	if err := d.sendBirthdayMessage([]string{target.ID}); err != nil {
+		slog.Error("sending manual birthday message", "userId", target.ID, "error", err)
+		respondEphemeral(d.Session, interaction.Interaction, fmt.Sprintf("sorry, i couldn't send %s a birthday message :(", target.Username))
+		return
+	}
+
+	respondEphemeral(d.Session, interaction.Interaction, fmt.Sprintf("sent %s a birthday message.", target.Username))
 }

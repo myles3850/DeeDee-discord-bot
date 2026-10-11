@@ -221,6 +221,14 @@ Staff version of `/birthdays check` that can look up anyone's birthday. It's a s
 |---|---|---|
 | `user` | yes | Whose birthday to check |
 
+### `/wish_birthday`
+
+Posts the happy birthday message in `birthdayChannelID` for one person, whether or not they've saved a birthday — the same message the 6AM run sends. The confirmation reply is ephemeral. Requires **Manage Guild** permission.
+
+| Option | Required | Description |
+|---|---|---|
+| `user` | yes | Who to wish happy birthday |
+
 ## Guild data methods
 
 These are called by the REST API layer (`webapi`), which declares its own `discordClient` interface naming exactly these methods and takes a `*Discord` through it — see [webapi/README.md](../webapi/README.md):

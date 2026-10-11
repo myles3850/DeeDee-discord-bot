@@ -62,6 +62,15 @@ func (d *Discord) sendBirthdayReminders(today time.Time) (int, error) {
 		return 0, nil
 	}
 
+	if err := d.sendBirthdayMessage(userIDs); err != nil {
+		return 0, err
+	}
+	return len(userIDs), nil
+}
+
+// sendBirthdayMessage posts one happy birthday message in birthdayChannelID
+// mentioning each of userIDs.
+func (d *Discord) sendBirthdayMessage(userIDs []string) error {
 	mentions := make([]string, len(userIDs))
 	for i, id := range userIDs {
 		mentions[i] = fmt.Sprintf("<@%s>", id)
@@ -69,7 +78,7 @@ func (d *Discord) sendBirthdayReminders(today time.Time) (int, error) {
 
 	message := fmt.Sprintf("🎂 Happy birthday %s! Hope you have the best day 🎉", strings.Join(mentions, ", "))
 	if _, err := d.Session.ChannelMessageSend(birthdayChannelID, message); err != nil {
-		return 0, fmt.Errorf("sending birthday message to %s: %w", birthdayChannelID, err)
+		return fmt.Errorf("sending birthday message to %s: %w", birthdayChannelID, err)
 	}
-	return len(userIDs), nil
+	return nil
 }

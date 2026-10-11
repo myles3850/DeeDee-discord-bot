@@ -30,6 +30,8 @@ func (d *Discord) OnInteraction(s *discordgo.Session, i *discordgo.InteractionCr
 		d.processSendBirthdaysCommand(i)
 	case cmdCheckBirthday:
 		d.processCheckUserBirthdayCommand(i)
+	case cmdWishBirthday:
+		d.processWishBirthdayCommand(i)
 	}
 }
 
