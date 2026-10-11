@@ -14,7 +14,7 @@ const (
 	// botSpamRoleID, when self-assigned, times the member out via timeoutBotRole.
 	botSpamRoleID = "1519435918224785458"
 	// birthdayChannelID receives the daily birthday message.
-	birthdayChannelID = "1444301056333840428"
+	birthdayChannelID = "1483226521098260659"
 )
 
 // botRoleTimeoutDuration is how long a member is timed out for picking botSpamRoleID.
