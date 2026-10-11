@@ -113,6 +113,8 @@ main.go
 
 The `compose.yaml` defines two services: the bot application (mapped to port 3863) and Postgres 17 (mapped to port 5434). The database has a health check so the app waits until Postgres is ready before starting.
 
+The bot service pulls `forge.choccobear.tech/choccobear/deedee-bot:latest` rather than building locally. Pushes to `main` run `.forgejo/workflows/deploy.yaml`, which builds and pushes that image and then calls an Arcane project-redeploy webhook so the running stack picks it up. The workflow needs two repo secrets: `REGISTRY_TOKEN` (Forgejo token with `write:package`) and `ARCANE_WEBHOOK_URL`. To run a local build instead, use `docker build -t forge.choccobear.tech/choccobear/deedee-bot:latest .` before `docker compose up --pull never`.
+
 The bot image is built `FROM scratch`, so it has no shell, `curl`, or `wget` for a conventional health check command. Instead, the Dockerfile builds a second tiny binary from `cmd/healthcheck/` that hits the bot's own `GET /health` endpoint, and `HEALTHCHECK` runs that binary directly — this is what a Docker dashboard like [Arcane](https://getarcane.app/) uses to show the container's live status.
 
 ```sh

@@ -1,6 +1,7 @@
 services:
   bot:
-    build: .
+    image: forge.choccobear.tech/choccobear/deedee-bot:latest
+    pull_policy: always
     env_file: .env
     ports:
       - "127.0.0.1:3863:8080"
