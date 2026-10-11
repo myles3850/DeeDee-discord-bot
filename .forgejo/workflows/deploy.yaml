@@ -24,5 +24,22 @@ jobs:
           docker push "$IMAGE:latest"
           docker push "$IMAGE:${{ github.sha }}"
 
-      - name: Trigger Arcane redeploy
-        run: curl -fsS -X POST "${{ secrets.ARCANE_WEBHOOK_URL }}"
+      # git sync only redeploys when compose.yaml changes, so follow it with a
+      # project redeploy to pull the new image. these go through the Arcane API
+      # rather than webhooks: the sync call blocks until it finishes and the
+      # redeploy streams progress until done, so each step only passes once
+      # Arcane has actually completed it.
+      - name: Sync compose file in Arcane
+        run: |
+          curl -fsS -X POST \
+            -H "X-Api-Key: ${{ secrets.ARCANE_API_KEY }}" \
+            "${{ vars.ARCANE_URL }}/api/environments/0/gitops-syncs/${{ vars.ARCANE_SYNC_ID }}/sync"
+
+      - name: Redeploy in Arcane
+        run: |
+          curl -fsS -N -X POST \
+            -H "X-Api-Key: ${{ secrets.ARCANE_API_KEY }}" \
+            "${{ vars.ARCANE_URL }}/api/environments/0/projects/${{ vars.ARCANE_PROJECT_ID }}/redeploy" \
+            | tee redeploy.log
+          grep -q '"done":true' redeploy.log
+          ! grep -qi '"error"' redeploy.log
