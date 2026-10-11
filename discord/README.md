@@ -83,7 +83,7 @@ case cmdEightBall:
 }
 ```
 
-Each processor is a method on `*Discord`, so it has full access to `d.Database`, `d.Session`, and `d.Sheet`. They live in `slashCommands.go` and respond to the user via the shared `respond(session, interaction, content)` helper, which wraps `InteractionRespond` and logs failures instead of dropping them silently.
+Each processor is a method on `*Discord`, so it has full access to `d.Database`, `d.Session`, and `d.Sheet`. They live in `slashCommands.go` and respond to the user via the shared `respond(session, interaction, content)` helper, which wraps `InteractionRespond` and logs failures instead of dropping them silently. Use `respondEphemeral` instead when the reply should only be visible to the person who ran the command.
 
 ### Reading an existing command
 
@@ -196,6 +196,30 @@ Bulk-archives all historical messages from every guild channel into the database
 ### `/shake`
 
 Sends one of two custom animated shake emotes at random.
+
+### `/birthdays`
+
+A command group for birthdays. Birthdays are stored as day/month only and shown UK style (e.g. "14 March"). Every day at `birthdayReminderHour` (6AM, `birthdayTimezone`), everyone whose birthday it is gets a happy birthday message in `birthdayChannelID` — see `StartBirthdayReminders` in `birthdays.go`, started from `main.go`. Feb 29 birthdays are celebrated on Feb 28 in non-leap years.
+
+| Subcommand | Option | Required | Description |
+|---|---|---|---|
+| `add` | `day`, `month` | yes | Saves your birthday; rejects dates that don't exist |
+| `check` | — | — | Shows your own birthday (staff can check anyone's with `/check_birthday`) |
+| `remove` | — | — | Forgets your birthday |
+
+All replies are ephemeral (via `respondEphemeral`) so only the person who ran the command sees them — birthdays aren't left in channel history.
+
+### `/send_birthdays`
+
+Posts today's birthday message in `birthdayChannelID` straight away, the same as the 6AM run — useful if the bot was down at 6AM. Replies (ephemerally) with how many people were mentioned, or that nobody has a birthday today. Requires **Manage Guild** permission.
+
+### `/check_birthday`
+
+Staff version of `/birthdays check` that can look up anyone's birthday. It's a separate command rather than an option on `/birthdays check` because Discord can only restrict whole commands, not individual options — this way normal users never see it. The reply is ephemeral. Requires **Manage Guild** permission.
+
+| Option | Required | Description |
+|---|---|---|
+| `user` | yes | Whose birthday to check |
 
 ## Guild data methods
 

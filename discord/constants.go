@@ -13,7 +13,19 @@ const (
 	modmailCategoryID = "1483226520637018127"
 	// botSpamRoleID, when self-assigned, times the member out via timeoutBotRole.
 	botSpamRoleID = "1519435918224785458"
+	// birthdayChannelID receives the daily birthday message.
+	birthdayChannelID = "1444301056333840428"
 )
 
 // botRoleTimeoutDuration is how long a member is timed out for picking botSpamRoleID.
 const botRoleTimeoutDuration = 7 * 24 * time.Hour
+
+// birthdayReminderHour is the hour (in birthdayTimezone) the daily birthday
+// message is posted.
+const birthdayReminderHour = 6
+
+// birthdayTimezone is the IANA timezone birthdayReminderHour is measured in.
+const birthdayTimezone = "Europe/London"
+
+// birthdayDisplayFormat is how birthdays are shown to users, UK style, e.g. "14 March".
+const birthdayDisplayFormat = "2 January"

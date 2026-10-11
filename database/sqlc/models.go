@@ -62,4 +62,5 @@ type User struct {
 	ID          int32
 	DiscordID   int64
 	DiscordUser string
+	Birthday    sql.NullTime
 }

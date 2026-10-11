@@ -66,6 +66,8 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	go discordInstance.StartBirthdayReminders(ctx)
 	<-ctx.Done()
 
 	slog.Info("shutting down")

@@ -24,6 +24,12 @@ func (d *Discord) OnInteraction(s *discordgo.Session, i *discordgo.InteractionCr
 		d.ProcessOldMessages(i)
 	case cmdShake:
 		d.processShakeCommand(i)
+	case cmdBirthdays:
+		d.processBirthdaysCommand(i)
+	case cmdSendBirthdays:
+		d.processSendBirthdaysCommand(i)
+	case cmdCheckBirthday:
+		d.processCheckUserBirthdayCommand(i)
 	}
 }
 

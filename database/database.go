@@ -78,6 +78,73 @@ func (d *Db) SaveUser(discordID string, username string) (int32, error) {
 	})
 }
 
+func (d *Db) SaveBirthdayForUser(discordID string, username string, birthday time.Time) error {
+	id, err := strconv.ParseInt(discordID, 10, 64)
+	if err != nil {
+		return fmt.Errorf("invalid discord ID %s: %w", discordID, err)
+	}
+	return d.queries.SaveBirthdayForUser(context.Background(), sqlcdb.SaveBirthdayForUserParams{
+		DiscordID:   id,
+		DiscordUser: username,
+		Birthday:    sql.NullTime{Time: birthday, Valid: true},
+	})
+}
+
+// GetBirthdayForUser returns sql.ErrNoRows if the user is unknown or hasn't
+// set a birthday.
+func (d *Db) GetBirthdayForUser(discordID string) (time.Time, error) {
+	id, err := strconv.ParseInt(discordID, 10, 64)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid discord ID %s: %w", discordID, err)
+	}
+	birthday, err := d.queries.GetBirthdayForUser(context.Background(), id)
+	if err != nil {
+		return time.Time{}, err
+	}
+	if !birthday.Valid {
+		return time.Time{}, sql.ErrNoRows
+	}
+	return birthday.Time, nil
+}
+
+// RemoveBirthdayForUser clears the user's birthday, reporting whether there
+// was one to remove.
+func (d *Db) RemoveBirthdayForUser(discordID string) (bool, error) {
+	id, err := strconv.ParseInt(discordID, 10, 64)
+	if err != nil {
+		return false, fmt.Errorf("invalid discord ID %s: %w", discordID, err)
+	}
+	removed, err := d.queries.RemoveBirthdayForUser(context.Background(), id)
+	if err != nil {
+		return false, err
+	}
+	return removed > 0, nil
+}
+
+// GetUsersWithBirthdayOn returns the discord IDs of everyone whose birthday
+// is celebrated on date. Feb 29 birthdays are celebrated on Feb 28 in
+// non-leap years.
+func (d *Db) GetUsersWithBirthdayOn(date time.Time) ([]string, error) {
+	days := []int32{int32(date.Day())}
+	isLeapYear := time.Date(date.Year(), time.February, 29, 0, 0, 0, 0, time.UTC).Month() == time.February
+	if date.Month() == time.February && date.Day() == 28 && !isLeapYear {
+		days = append(days, 29)
+	}
+
+	ids, err := d.queries.GetUsersWithBirthdayOn(context.Background(), sqlcdb.GetUsersWithBirthdayOnParams{
+		Month: int32(date.Month()),
+		Days:  days,
+	})
+	if err != nil {
+		return nil, err
+	}
+	discordIDs := make([]string, len(ids))
+	for i, id := range ids {
+		discordIDs[i] = strconv.FormatInt(id, 10)
+	}
+	return discordIDs, nil
+}
+
 func (d *Db) SaveMessage(discordMessageID, channelID string, authorID int32, content string, createdAt time.Time) (int32, error) {
 	return d.queries.SaveMessage(context.Background(), sqlcdb.SaveMessageParams{
 		DiscordMessageID: discordMessageID,

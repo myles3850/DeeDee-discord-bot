@@ -7,7 +7,23 @@ package sqlcdb
 
 import (
 	"context"
+	"database/sql"
+
+	"github.com/lib/pq"
 )
+
+const getBirthdayForUser = `-- name: GetBirthdayForUser :one
+SELECT birthday
+FROM users
+WHERE discord_id = $1
+`
+
+func (q *Queries) GetBirthdayForUser(ctx context.Context, discordID int64) (sql.NullTime, error) {
+	row := q.db.QueryRowContext(ctx, getBirthdayForUser, discordID)
+	var birthday sql.NullTime
+	err := row.Scan(&birthday)
+	return birthday, err
+}
 
 const getUser = `-- name: GetUser :one
 SELECT id, discord_id, discord_user
@@ -15,11 +31,86 @@ FROM users
 WHERE discord_id = $1
 `
 
-func (q *Queries) GetUser(ctx context.Context, discordID int64) (User, error) {
+type GetUserRow struct {
+	ID          int32
+	DiscordID   int64
+	DiscordUser string
+}
+
+func (q *Queries) GetUser(ctx context.Context, discordID int64) (GetUserRow, error) {
 	row := q.db.QueryRowContext(ctx, getUser, discordID)
-	var i User
+	var i GetUserRow
 	err := row.Scan(&i.ID, &i.DiscordID, &i.DiscordUser)
 	return i, err
+}
+
+const getUsersWithBirthdayOn = `-- name: GetUsersWithBirthdayOn :many
+SELECT discord_id
+FROM users
+WHERE EXTRACT(MONTH FROM birthday) = $1::int
+  AND EXTRACT(DAY FROM birthday) = ANY($2::int[])
+`
+
+type GetUsersWithBirthdayOnParams struct {
+	Month int32
+	Days  []int32
+}
+
+func (q *Queries) GetUsersWithBirthdayOn(ctx context.Context, arg GetUsersWithBirthdayOnParams) ([]int64, error) {
+	rows, err := q.db.QueryContext(ctx, getUsersWithBirthdayOn, arg.Month, pq.Array(arg.Days))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []int64
+	for rows.Next() {
+		var discord_id int64
+		if err := rows.Scan(&discord_id); err != nil {
+			return nil, err
+		}
+		items = append(items, discord_id)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const removeBirthdayForUser = `-- name: RemoveBirthdayForUser :execrows
+UPDATE users
+SET birthday = NULL
+WHERE discord_id = $1
+  AND birthday IS NOT NULL
+`
+
+func (q *Queries) RemoveBirthdayForUser(ctx context.Context, discordID int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, removeBirthdayForUser, discordID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const saveBirthdayForUser = `-- name: SaveBirthdayForUser :exec
+INSERT INTO users (discord_id, discord_user, birthday)
+VALUES ($1, $2, $3)
+ON CONFLICT (discord_id) DO UPDATE
+    SET discord_user = EXCLUDED.discord_user,
+        birthday = EXCLUDED.birthday
+`
+
+type SaveBirthdayForUserParams struct {
+	DiscordID   int64
+	DiscordUser string
+	Birthday    sql.NullTime
+}
+
+func (q *Queries) SaveBirthdayForUser(ctx context.Context, arg SaveBirthdayForUserParams) error {
+	_, err := q.db.ExecContext(ctx, saveBirthdayForUser, arg.DiscordID, arg.DiscordUser, arg.Birthday)
+	return err
 }
 
 const saveUser = `-- name: SaveUser :one
